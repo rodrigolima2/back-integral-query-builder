@@ -1,4 +1,4 @@
-const conexao = require('../conexao');
+const knex = require('../conexao');
 
 const listarProdutos = async (req, res) => {
     const { usuario } = req;
@@ -9,12 +9,12 @@ const listarProdutos = async (req, res) => {
         const params = [];
 
         if (categoria) {
-            condicao += 'and categoria ilike $2';
+            condicao += 'and categoria ilike ?';
             params.push(`%${categoria}%`);
         }
 
-        const query = `select * from produtos where usuario_id = $1 ${condicao}`;
-        const { rows: produtos } = await conexao.query(query, [usuario.id, ...params]);
+        const query = `select * from produtos where usuario_id = ? ${condicao}`;
+        const { rows: produtos } = await knex.raw(`${query}`, [usuario.id, ...params]);
 
         return res.status(200).json(produtos);
     } catch (error) {
@@ -27,8 +27,8 @@ const obterProduto = async (req, res) => {
     const { id } = req.params;
 
     try {
-        const query = `select * from produtos where usuario_id = $1 and id = $2`;
-        const { rows, rowCount } = await conexao.query(query, [usuario.id, id]);
+        const query = `select * from produtos where usuario_id = ? and id = ?`;
+        const { rows, rowCount } = await knex.raw(query, [usuario.id, id]);
 
         if (rowCount === 0) {
             return res.status(404).json('Produto não encontrado');
@@ -43,6 +43,8 @@ const obterProduto = async (req, res) => {
 const cadastrarProduto = async (req, res) => {
     const { usuario } = req;
     const { nome, estoque, preco, categoria, descricao, imagem } = req.body;
+    let categoriaNull = categoria;
+    let imagemNull = imagem;
 
     if (!nome) {
         return res.status(404).json('O campo nome é obrigatório');
@@ -60,9 +62,17 @@ const cadastrarProduto = async (req, res) => {
         return res.status(404).json('O campo descricao é obrigatório');
     }
 
+    if (!categoriaNull) {
+        categoriaNull = null;
+    }
+
+    if (!imagemNull) {
+        imagemNull = null;
+    }
+
     try {
-        const query = 'insert into produtos (usuario_id, nome, estoque, preco, categoria, descricao, imagem) values ($1, $2, $3, $4, $5, $6, $7)';
-        const produto = await conexao.query(query, [usuario.id, nome, estoque, preco, categoria, descricao, imagem]);
+        const query = 'insert into produtos (usuario_id, nome, estoque, preco, categoria, descricao, imagem) values (?, ?, ?, ?, ?, ?, ?)';
+        const produto = await knex.raw(query, [usuario.id, nome, estoque, preco, categoriaNull, descricao, imagemNull]);
 
         if (produto.rowCount === 0) {
             return res.status(400).json('O produto não foi cadastrado');
@@ -84,8 +94,8 @@ const atualizarProduto = async (req, res) => {
     }
 
     try {
-        const query = `select * from produtos where usuario_id = $1 and id = $2`;
-        const { rowCount } = await conexao.query(query, [usuario.id, id]);
+        const query = `select * from produtos where usuario_id = ? and id = ?`;
+        const { rowCount } = await knex.raw(query, [usuario.id, id]);
 
         if (rowCount === 0) {
             return res.status(404).json('Produto não encontrado');
@@ -97,45 +107,45 @@ const atualizarProduto = async (req, res) => {
 
         if (nome) {
             body.nome = nome;
-            params.push(`nome = $${n}`);
+            params.push(`nome = ?`);
             n++;
         }
 
         if (estoque) {
             body.estoque = estoque;
-            params.push(`estoque = $${n}`);
+            params.push(`estoque = ?`);
             n++;
         }
 
         if (categoria) {
             body.categoria = categoria;
-            params.push(`categoria = $${n}`);
+            params.push(`categoria = ?`);
             n++;
         }
 
         if (descricao) {
             body.descricao = descricao;
-            params.push(`descricao = $${n}`);
+            params.push(`descricao = ?`);
             n++;
         }
 
         if (preco) {
             body.preco = preco;
-            params.push(`preco = $${n}`);
+            params.push(`preco = ?`);
             n++;
         }
 
         if (imagem) {
             body.imagem = imagem;
-            params.push(`imagem = $${n}`);
+            params.push(`imagem = ?`);
             n++;
         }
 
         const valores = Object.values(body);
         valores.push(id);
         valores.push(usuario.id);
-        const queryAtualizacao = `update produtos set ${params.join(', ')} where id = $${n} and usuario_id = $${n + 1}`;
-        const produtoAtualizado = await conexao.query(queryAtualizacao, valores);
+        const queryAtualizacao = `update produtos set ${params.join(', ')} where id = ? and usuario_id = ?`;
+        const produtoAtualizado = await knex.raw(queryAtualizacao, valores);
 
         if (produtoAtualizado.rowCount === 0) {
             return res.status(400).json("O produto não foi atualizado");
@@ -152,14 +162,14 @@ const excluirProduto = async (req, res) => {
     const { id } = req.params;
 
     try {
-        const query = `select * from produtos where usuario_id = $1 and id = $2`;
-        const { rowCount } = await conexao.query(query, [usuario.id, id]);
+        const query = `select * from produtos where usuario_id = ? and id = ?`;
+        const { rowCount } = await knex.raw(query, [usuario.id, id]);
 
         if (rowCount === 0) {
             return res.status(404).json('Produto não encontrado');
         }
 
-        const produtoExcluido = await conexao.query('delete from produtos where id = $1', [id]);
+        const produtoExcluido = await knex.raw('delete from produtos where id = ?', [id]);
 
         if (produtoExcluido.rowCount === 0) {
             return res.status(400).json("O produto não foi excluido");

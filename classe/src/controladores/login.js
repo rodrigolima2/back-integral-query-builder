@@ -1,4 +1,4 @@
-const conexao = require('../conexao');
+const knex = require('../conexao');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const senhaHash = require('../senhaHash');
@@ -11,7 +11,9 @@ const login = async (req, res) => {
     }
 
     try {
-        const { rowCount, rows } = await conexao.query('select * from usuarios where email = $1', [email]);
+        //const { rowCount, rows } = await conexao.query('select * from usuarios where email = $1', [email]);
+
+        const { rowCount, rows } = await knex.raw('select * from usuarios where email = ?', [email]);
 
         if (rowCount === 0) {
             return res.status(400).json("O usuario não foi encontrado");
